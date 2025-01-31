@@ -1,0 +1,104 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: voice-translator-alerts
+  namespace: monitoring
+spec:
+  groups:
+  - name: voice-translator
+    rules:
+    # API Performance Alerts
+    - alert: HighLatency
+      expr: rate(api_response_time_seconds_sum[5m]) / rate(api_response_time_seconds_count[5m]) > 1
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Yüksek API yanıt süresi"
+        description: "Son 5 dakikadaki ortalama yanıt süresi 1 saniyeden fazla"
+
+    - alert: HighErrorRate
+      expr: sum(rate(error_total[5m])) / sum(rate(api_requests_total[5m])) > 0.05
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Yüksek hata oranı"
+        description: "Son 5 dakikadaki hata oranı %5'ten fazla"
+
+    # WebSocket Alerts
+    - alert: HighWebSocketDisconnectionRate
+      expr: rate(ws_connections_active{direction="disconnect"}[5m]) > 10
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Yüksek WebSocket bağlantı kopma oranı"
+        description: "Son 5 dakikada 10'dan fazla WebSocket bağlantısı koptu"
+
+    - alert: WebSocketProcessingDelay
+      expr: histogram_quantile(0.95, rate(ws_processing_time_seconds_bucket[5m])) > 0.5
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "WebSocket işlem gecikmesi"
+        description: "WebSocket mesajlarının %95'i 500ms'den uzun sürüyor"
+
+    # Resource Usage Alerts
+    - alert: HighMemoryUsage
+      expr: memory_usage_bytes > 500 * 1024 * 1024  # 500MB
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Yüksek bellek kullanımı"
+        description: "Bellek kullanımı 500MB'ı aştı"
+
+    - alert: HighCPUUsage
+      expr: cpu_usage_percent > 80
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Yüksek CPU kullanımı"
+        description: "CPU kullanımı %80'i aştı"
+
+    # Cache Performance Alerts
+    - alert: LowCacheHitRate
+      expr: sum(rate(cache_hits_total[5m])) / (sum(rate(cache_hits_total[5m])) + sum(rate(cache_misses_total[5m]))) < 0.7
+      for: 15m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Düşük önbellek isabet oranı"
+        description: "Önbellek isabet oranı %70'in altına düştü"
+
+    # Translation Service Alerts
+    - alert: HighTranslationFailureRate
+      expr: sum(rate(error_total{type=~"TranslationError.*"}[5m])) / sum(rate(translation_requests_total[5m])) > 0.1
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Yüksek çeviri hatası oranı"
+        description: "Çeviri hatası oranı %10'u aştı"
+
+    # Infrastructure Alerts
+    - alert: PodRestarting
+      expr: kube_pod_container_status_restarts_total{namespace="voice-translator"} > 5
+      for: 15m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Pod sık yeniden başlıyor"
+        description: "Pod son 15 dakikada 5'ten fazla kez yeniden başladı"
+
+    - alert: HighPodMemory
+      expr: container_memory_usage_bytes{namespace="voice-translator"} > 800 * 1024 * 1024  # 800MB
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Pod bellek kullanımı kritik seviyede"
+        description: "Pod bellek kullanımı 800MB'ı aştı" 

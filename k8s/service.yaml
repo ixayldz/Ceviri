@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: voice-translator
+  labels:
+    app: voice-translator
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: metrics
+  selector:
+    app: voice-translator 
